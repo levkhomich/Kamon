@@ -84,7 +84,23 @@ kamon {
 Instruments
 -----------
 
-Talk about how HDR Histogram works and how we use it.
+The most common thing that Kamon will help you measure is latency: how much time did the application spend doing
+something. Be it the time taken for processing a message within a actor, or how long did it take to serve a HTTP
+request, Kamon needs to provide you with accurate data while keeping the overhead of metrics collection as low as
+possible. Now a question raises, what is the best way to show information about latency?, is it to show averages? (oh
+no, hell no!), is it to show percentiles / what percentiles should we show?, it depends a lot on what do you need this
+numbers for, so Kamon decided to go with a simple approach to keep everyone happy: we record all the data; there is no
+statistical representation of the latency distribution, no running averages, just your plain data, __all your data__,
+then you decide what kind of analysis you want to do with it.
+
+As you might guess, keeping all the latency measurements is not an easy task and some tradeoffs have to be made,
+specially when monitoring systems that can process millions of events per second in order to keep resources consumption
+to the minimum. After experimenting with some of the most used libraries for metrics collection on the JVM, Kamon
+settled with the not so widely known [HdrHistogram](https://github.com/HdrHistogram/HdrHistogram) implementation created
+by [Gil Tene](https://twitter.com/giltene). Let's explore what does the HdrHistogram brings to the table:
+
+* Fixed
+
 
 
 Subscription protocol
