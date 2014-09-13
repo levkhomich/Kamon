@@ -29,6 +29,9 @@ project/plugins/project/
 .classpath
 .cache
 
+# Sublime Editor
+*.sublime-*
+
 _site
 
 # Ignore Play! working directory #
