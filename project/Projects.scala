@@ -8,7 +8,7 @@ object Projects extends Build {
 
   lazy val root = Project("root", file("."))
     .aggregate(kamonCore, kamonSpray, kamonNewrelic, kamonPlayground, kamonDashboard, kamonTestkit, kamonPlay, kamonStatsD,
-      kamonDatadog, kamonSystemMetrics, kamonLogReporter)
+      kamonDatadog, kamonSystemMetrics, kamonLogReporter, kamonCsvReporter)
     .settings(basicSettings: _*)
     .settings(formatSettings: _*)
     .settings(noPublishing: _*)
@@ -57,11 +57,12 @@ object Projects extends Build {
   lazy val kamonPlayground = Project("kamon-playground", file("kamon-playground"))
     .settings(basicSettings: _*)
     .settings(formatSettings: _*)
+    .settings(aspectJSettings: _*)
     .settings(noPublishing: _*)
     .settings(
       libraryDependencies ++=
         compile(akkaActor, akkaSlf4j, sprayCan, sprayClient, sprayRouting, logback))
-    .dependsOn(kamonSpray, kamonNewrelic, kamonStatsD, kamonDatadog, kamonLogReporter, kamonSystemMetrics)
+    .dependsOn(kamonSpray, kamonNewrelic, kamonStatsD, kamonDatadog, kamonLogReporter, kamonCsvReporter, kamonSystemMetrics)
 
 
   lazy val kamonDashboard = Project("kamon-dashboard", file("kamon-dashboard"))
@@ -90,7 +91,7 @@ object Projects extends Build {
     .settings(libraryDependencies ++= compile(akkaActor) ++  test(scalatest, akkaTestKit, slf4Api, slf4nop))
     .dependsOn(kamonCore)
     .dependsOn(kamonSystemMetrics % "provided")
- 
+
   lazy val kamonDatadog = Project("kamon-datadog", file("kamon-datadog"))
     .settings(basicSettings: _*)
     .settings(formatSettings: _*)
@@ -99,6 +100,13 @@ object Projects extends Build {
     .dependsOn(kamonSystemMetrics % "provided")
 
   lazy val kamonLogReporter = Project("kamon-log-reporter", file("kamon-log-reporter"))
+    .settings(basicSettings: _*)
+    .settings(formatSettings: _*)
+    .settings(libraryDependencies ++= compile(akkaActor) ++  test(scalatest, akkaTestKit, slf4Api, slf4nop))
+    .dependsOn(kamonCore)
+    .dependsOn(kamonSystemMetrics % "provided")
+
+  lazy val kamonCsvReporter = Project("kamon-csv-reporter", file("kamon-csv-reporter"))
     .settings(basicSettings: _*)
     .settings(formatSettings: _*)
     .settings(libraryDependencies ++= compile(akkaActor) ++  test(scalatest, akkaTestKit, slf4Api, slf4nop))
