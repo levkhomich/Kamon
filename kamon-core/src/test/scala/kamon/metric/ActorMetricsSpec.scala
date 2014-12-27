@@ -17,7 +17,7 @@ package kamon.metric
 
 import java.nio.LongBuffer
 
-import akka.instrumentation.ActorCellMetrics
+import akka.kamon.instrumentation.ActorCellMetrics
 import kamon.Kamon
 import kamon.metric.ActorMetricsTestActor._
 import kamon.metric.instrument.Histogram.MutableRecord
@@ -44,13 +44,18 @@ class ActorMetricsSpec extends TestKitBase with WordSpecLike with Matchers with 
       |      }
       |    }
       |  ]
-      |  precision {
-      |    default-histogram-precision {
+      |  precision.actor {
+      |    processing-time {
       |      highest-trackable-value = 3600000000000
       |      significant-value-digits = 2
       |    }
       |
-      |    default-min-max-counter-precision {
+      |    time-in-mailbox {
+      |      highest-trackable-value = 3600000000000
+      |      significant-value-digits = 2
+      |    }
+      |
+      |    mailbox-size {
       |      refresh-interval = 1 hour
       |      highest-trackable-value = 999999999
       |      significant-value-digits = 2
@@ -193,7 +198,7 @@ class ActorMetricsSpec extends TestKitBase with WordSpecLike with Matchers with 
 class ActorMetricsTestActor extends Actor {
   def receive = {
     case Discard ⇒
-    case Fail    ⇒ 1 / 0
+    case Fail    ⇒ throw new ArithmeticException("Division by zero.")
     case Ping    ⇒ sender ! Pong
     case TrackTimings(sendTimestamp, sleep) ⇒ {
       val dequeueTimestamp = System.nanoTime()

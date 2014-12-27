@@ -14,14 +14,14 @@
  * =========================================================================================
  */
 
-package akka.instrumentation
+package akka.kamon.instrumentation
 
 import java.lang.reflect.Method
 import java.util.concurrent.ThreadPoolExecutor
 
 import akka.actor.{ ActorSystemImpl, Cancellable }
 import akka.dispatch.{ Dispatcher, Dispatchers, ExecutorServiceDelegate, MessageDispatcher }
-import akka.instrumentation.DispatcherMetricsCollector.DispatcherMetricsMeasurement
+import akka.kamon.instrumentation.DispatcherMetricsCollector.DispatcherMetricsMeasurement
 import kamon.Kamon
 import kamon.metric.DispatcherMetrics.DispatcherMetricRecorder
 import kamon.metric.{ DispatcherMetrics, Metrics }
@@ -105,7 +105,7 @@ class DispatcherInstrumentation {
 @Aspect
 class DispatcherMetricCollectionInfoIntoDispatcherMixin {
 
-  @DeclareMixin("akka.dispatch.Dispatcher")
+  @DeclareMixin("akka.dispatch.MessageDispatcher")
   def mixinDispatcherMetricsToMessageDispatcher: DispatcherMetricCollectionInfo = new DispatcherMetricCollectionInfo {}
 
   @DeclareMixin("akka.dispatch.Dispatchers")

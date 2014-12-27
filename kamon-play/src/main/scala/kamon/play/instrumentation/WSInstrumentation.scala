@@ -17,14 +17,11 @@
 package kamon.play.instrumentation
 
 import kamon.Kamon
-import kamon.metric.TraceMetrics.HttpClientRequest
 import kamon.play.Play
-import kamon.trace.TraceRecorder
+import kamon.trace.{ SegmentCategory, TraceRecorder }
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.{ Around, Aspect, Pointcut }
-import play.api.libs.ws.ning.NingWSRequest
 import play.api.libs.ws.{ WSRequest, WSResponse }
-import play.libs.Akka
 
 import scala.concurrent.Future
 
@@ -36,32 +33,15 @@ class WSInstrumentation {
 
   @Around("onExecuteRequest(request)")
   def aroundExecuteRequest(pjp: ProceedingJoinPoint, request: WSRequest): Any = {
+    TraceRecorder.withTraceContextAndSystem { (ctx, system) ⇒
+      val playExtension = Kamon(Play)(system)
+      val executor = playExtension.defaultDispatcher
+      val segmentName = playExtension.generateHttpClientSegmentName(request)
+      val segment = ctx.startSegment(segmentName, SegmentCategory.HttpClient, Play.SegmentLibraryName)
+      val response = pjp.proceed().asInstanceOf[Future[WSResponse]]
 
-    import kamon.play.instrumentation.WSInstrumentation._
-
-    TraceRecorder.currentContext match {
-      case ctx @ Some(_) ⇒
-        TraceRecorder.withTraceContext(ctx) {
-          val executor = Kamon(Play)(Akka.system()).defaultDispatcher
-          val segmentHandle = TraceRecorder.startSegment(HttpClientRequest(request.url), basicRequestAttributes(request))
-          val response = pjp.proceed().asInstanceOf[Future[WSResponse]]
-
-          response.map(result ⇒ segmentHandle.map(_.finish()))(executor)
-          response
-        }
-      case None ⇒ pjp.proceed()
-    }
-  }
-}
-
-object WSInstrumentation {
-
-  def uri(request: WSRequest): java.net.URI = request.asInstanceOf[NingWSRequest].builder.build().getURI
-
-  def basicRequestAttributes(request: WSRequest): Map[String, String] = {
-    Map[String, String](
-      "host" -> uri(request).getHost,
-      "path" -> uri(request).getPath,
-      "method" -> request.method)
+      response.map(result ⇒ segment.finish())(executor)
+      response
+    } getOrElse pjp.proceed()
   }
 }
