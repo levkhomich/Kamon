@@ -31,6 +31,13 @@ import spray.routing.SimpleRoutingApp
 import scala.concurrent.{ Await, Future }
 import scala.util.Random
 
+class ZipKinActor extends Actor {
+  def receive = {
+    case e ⇒
+      println(e.getClass); println(e)
+  }
+}
+
 object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuilding with KamonTraceDirectives {
   import akka.pattern.ask
   import spray.client.pipelining._
@@ -41,12 +48,14 @@ object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuil
   import test.SimpleRequestProcessor.system.dispatcher
 
   val printer = system.actorOf(Props[PrintWhatever])
+  val zipKinActor = system.actorOf(Props[ZipKinActor])
 
   val act = system.actorOf(Props(new Actor {
     def receive: Actor.Receive = { case any ⇒ sender ! any }
   }), "com")
 
   Kamon(Trace).subscribe(printer)
+  Kamon(Trace).subscribe(zipKinActor)
   //val buffer = system.actorOf(TickMetricSnapshotBuffer.props(30 seconds, printer))
 
   //Kamon(Metrics).subscribe(CustomMetric, "*", buffer, permanently = true)
@@ -69,20 +78,50 @@ object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuil
 
   val pipeline = sendReceive
   val replier = system.actorOf(Props[Replier].withRouter(RoundRobinPool(nrOfInstances = 4)), "replier")
+  val asyncWork = system.actorOf(Props(new AsyncWork()))
 
   val random = new Random()
 
   startServer(interface = "localhost", port = 9090) {
     get {
-      path("test") {
-        traceName("test") {
+      path("foobar") {
+        get {
           complete {
-            val futures = pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: Nil
-
-            Future.sequence(futures).map(l ⇒ "Ok")
+            val f1 = {
+              traceFuture("f1") {
+                Future {
+                  Thread.sleep(500)
+                  println("f1", TraceRecorder.currentContext.token)
+                  asyncWork ! "ping"
+                  "Hello Kamon"
+                }
+              }
+            }
+            val f2 = Future {
+              trace("f2") {
+                Thread.sleep(1000)
+                println("f2", TraceRecorder.currentContext.token)
+                "OK"
+              }
+            }
+            Future.sequence(List(f1, f2)).map { strList ⇒
+              trace("combine") {
+                println("fseq", TraceRecorder.currentContext.token)
+                strList.mkString(" ")
+              }
+            }
           }
         }
       } ~
+        path("test") {
+          traceName("test") {
+            complete {
+              val futures = pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: Nil
+
+              Future.sequence(futures).map(l ⇒ "Ok")
+            }
+          }
+        } ~
         path("site") {
           traceName("FinalGetSite-3") {
             complete {
@@ -184,6 +223,22 @@ class Replier extends Actor with ActorLogging {
 
       //log.info("Processing at the Replier, and self is: {}", self)
       sender ! anything
+  }
+}
+
+class AsyncWork extends Actor with ActorLogging {
+  import context.system
+
+  def receive = {
+    case anything ⇒
+      if (TraceRecorder.currentContext.isEmpty)
+        log.warning("PROCESSING A MESSAGE WITHOUT CONTEXT")
+
+      trace("async") {
+        println(anything)
+
+        println("async", TraceRecorder.currentContext.token)
+      }
   }
 }
 

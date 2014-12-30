@@ -92,7 +92,7 @@ object Projects extends Build {
     .settings(aspectJSettings: _*)
     .settings(
       libraryDependencies ++=
-        compile(akkaActor, akkaSlf4j, sprayCan, sprayClient, sprayRouting, logback))
+        compile(akkaActor, akkaSlf4j, sprayCan, sprayClient, sprayRouting, logback, libThrift))
     .dependsOn(kamonSpray, kamonNewrelic, kamonStatsD, kamonDatadog, kamonLogReporter, kamonSystemMetrics)
 
 

@@ -56,6 +56,7 @@ object Dependencies {
   val scalazConcurrent = "org.scalaz"               %%  "scalaz-concurrent"     % "7.1.0"
   val sigarLoader     = "io.kamon"                  %   "sigar-loader"          % "1.6.5-rev001"
   val h2              = "com.h2database"            %   "h2"                    % "1.4.182"
+  val libThrift       = "org.apache.thrift"         %   "libthrift"             % "0.9.2"
 
   def compile   (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")
   def provided  (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "provided")
