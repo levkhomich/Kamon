@@ -1,4 +1,4 @@
-namespace java com.github.levkhomich.akka.tracing.thrift
+namespace java kamon.zipkin.thrift
 
 enum ResultCode {
   OK,

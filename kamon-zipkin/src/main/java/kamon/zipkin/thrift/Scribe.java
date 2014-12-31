@@ -354,7 +354,7 @@ public class Scribe {
       return (this.messages == null) ? 0 : this.messages.size();
     }
 
-    public java.util.Iterator<LogEntry> get_messages_iterator() {
+    public Iterator<LogEntry> get_messages_iterator() {
       return (this.messages == null) ? null : this.messages.iterator();
     }
 
@@ -664,7 +664,7 @@ public class Scribe {
 
     /**
      * 
-     * @see ResultCode
+     * @see kamon.zipkin.thrift.ResultCode
      */
     public ResultCode success; // required
 
@@ -672,7 +672,7 @@ public class Scribe {
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
       /**
        * 
-       * @see ResultCode
+       * @see kamon.zipkin.thrift.ResultCode
        */
       SUCCESS((short)0, "success");
 
@@ -770,7 +770,7 @@ public class Scribe {
 
     /**
      * 
-     * @see ResultCode
+     * @see kamon.zipkin.thrift.ResultCode
      */
     public ResultCode get_success() {
       return this.success;
@@ -778,7 +778,7 @@ public class Scribe {
 
     /**
      * 
-     * @see ResultCode
+     * @see kamon.zipkin.thrift.ResultCode
      */
     public Log_result set_success(ResultCode success) {
       this.success = success;

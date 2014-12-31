@@ -315,7 +315,7 @@ public class Span implements org.apache.thrift.TBase<Span, Span._Fields>, java.i
     return (this.annotations == null) ? 0 : this.annotations.size();
   }
 
-  public java.util.Iterator<Annotation> get_annotations_iterator() {
+  public Iterator<Annotation> get_annotations_iterator() {
     return (this.annotations == null) ? null : this.annotations.iterator();
   }
 
@@ -354,7 +354,7 @@ public class Span implements org.apache.thrift.TBase<Span, Span._Fields>, java.i
     return (this.binary_annotations == null) ? 0 : this.binary_annotations.size();
   }
 
-  public java.util.Iterator<BinaryAnnotation> get_binary_annotations_iterator() {
+  public Iterator<BinaryAnnotation> get_binary_annotations_iterator() {
     return (this.binary_annotations == null) ? null : this.binary_annotations.iterator();
   }
 

@@ -1,6 +1,6 @@
 include "scribe.thrift"
 
-namespace java com.github.levkhomich.akka.tracing.thrift
+namespace java kamon.zipkin.thrift
 
 const string CLIENT_SEND = "cs"
 const string CLIENT_RECV = "cr"

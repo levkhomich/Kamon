@@ -36,7 +36,7 @@ public class BinaryAnnotation implements org.apache.thrift.TBase<BinaryAnnotatio
   public ByteBuffer value; // required
   /**
    * 
-   * @see AnnotationType
+   * @see kamon.zipkin.thrift.AnnotationType
    */
   public AnnotationType annotation_type; // required
   public Endpoint host; // optional
@@ -47,7 +47,7 @@ public class BinaryAnnotation implements org.apache.thrift.TBase<BinaryAnnotatio
     VALUE((short)2, "value"),
     /**
      * 
-     * @see AnnotationType
+     * @see kamon.zipkin.thrift.AnnotationType
      */
     ANNOTATION_TYPE((short)3, "annotation_type"),
     HOST((short)4, "host");
@@ -233,7 +233,7 @@ public class BinaryAnnotation implements org.apache.thrift.TBase<BinaryAnnotatio
 
   /**
    * 
-   * @see AnnotationType
+   * @see kamon.zipkin.thrift.AnnotationType
    */
   public AnnotationType get_annotation_type() {
     return this.annotation_type;
@@ -241,7 +241,7 @@ public class BinaryAnnotation implements org.apache.thrift.TBase<BinaryAnnotatio
 
   /**
    * 
-   * @see AnnotationType
+   * @see kamon.zipkin.thrift.AnnotationType
    */
   public BinaryAnnotation set_annotation_type(AnnotationType annotation_type) {
     this.annotation_type = annotation_type;
