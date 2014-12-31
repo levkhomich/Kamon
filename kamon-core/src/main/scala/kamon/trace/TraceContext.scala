@@ -26,6 +26,7 @@ trait TraceContext {
   def name: String
   def token: String
   def origin: TraceContextOrigin
+  def metadata: Map[String, String]
   def isEmpty: Boolean
   def nonEmpty: Boolean = !isEmpty
   def isOpen: Boolean
@@ -43,6 +44,7 @@ trait Segment {
   def name: String
   def category: String
   def library: String
+  def metadata: Map[String, String]
   def isEmpty: Boolean
   def nonEmpty: Boolean = !isEmpty
   def isOpen: Boolean
@@ -57,6 +59,7 @@ case object EmptyTraceContext extends TraceContext {
   def name: String = "empty-trace"
   def token: String = ""
   def origin: TraceContextOrigin = TraceContextOrigin.Local
+  def metadata: Map[String, String] = Map.empty
   def isEmpty: Boolean = true
   def isOpen: Boolean = false
   def system: ActorSystem = sys.error("Can't obtain a ActorSystem from a EmptyTraceContext.")
@@ -71,6 +74,7 @@ case object EmptyTraceContext extends TraceContext {
     val name: String = "empty-segment"
     val category: String = "empty-category"
     val library: String = "empty-library"
+    def metadata: Map[String, String] = Map.empty
     def isEmpty: Boolean = true
     def isOpen: Boolean = false
 

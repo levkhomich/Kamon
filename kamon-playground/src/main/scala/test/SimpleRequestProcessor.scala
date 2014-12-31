@@ -16,25 +16,142 @@
 
 package test
 
+import java.net.InetAddress
+import java.nio.ByteBuffer
+import javax.xml.bind.DatatypeConverter
+
 import akka.actor._
 import akka.routing.RoundRobinPool
 import akka.util.Timeout
-import kamon.Kamon
+import kamon.{NanoInterval, NanoTimestamp, Kamon}
 import kamon.metric.Subscriptions.TickMetricSnapshot
 import kamon.metric._
 import kamon.spray.KamonTraceDirectives
-import kamon.trace.{ Trace, SegmentCategory, TraceRecorder }
+import kamon.trace.{TraceInfo, Trace, SegmentCategory, TraceRecorder}
+import kamon.zipkin.TReusableTransport
+import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.transport.{TSocket, TFramedTransport}
 import spray.http.{ StatusCodes, Uri }
 import spray.httpx.RequestBuilding
 import spray.routing.SimpleRoutingApp
+import kamon.zipkin.thrift
 
 import scala.concurrent.{ Await, Future }
 import scala.util.Random
 
+object ZipKinActor {
+  val sessionLong = Random.nextLong()
+}
+
 class ZipKinActor extends Actor {
+  private val localAddress = ByteBuffer.wrap(InetAddress.getLocalHost.getAddress).getInt
+
+  private val protocolFactory = new TBinaryProtocol.Factory()
+  private val thriftBuffer = new TReusableTransport()
+
+  val transport = new TFramedTransport(
+    new TSocket("localhost", 9410)
+  )
+  private val client = new thrift.Scribe.Client(new TBinaryProtocol(transport))
+
+
   def receive = {
-    case e ⇒
-      println(e.getClass); println(e)
+    case trace: TraceInfo ⇒
+      import scala.collection.JavaConversions._
+
+      val spans = traceInfoToSpans(trace)
+      transport.open()
+      client.Log(spans.map(logEntryFromSpan))
+      transport.close()
+  }
+
+  private def timestampToMicros(nano: NanoTimestamp) = nano.nanos / 1000
+  private def durationToMicros(nano: NanoInterval) = nano.nanos / 1000
+
+
+  private def simpleSpan(traceId: Long, spanId: Long, name: String, start: Long, duration: Long, annotations: Map[String, String], parentSpanId: Long = 0) = {
+    val sr = new thrift.Annotation()
+    sr.set_timestamp(start)
+    sr.set_value(thrift.zipkinConstants.SERVER_RECV)
+    sr.set_host(createEndpoint())
+
+    val ss = new thrift.Annotation()
+    ss.set_timestamp(start + duration)
+    ss.set_value(thrift.zipkinConstants.SERVER_SEND)
+    ss.set_host(sr.get_host())
+
+    val span = new thrift.Span()
+    span.set_trace_id(traceId)
+    span.set_id(spanId)
+    span.set_parent_id(parentSpanId)
+    span.set_name(name)
+    span.add_to_annotations(sr)
+    span.add_to_annotations(ss)
+    annotations.foreach { case (k, v) => span.add_to_binary_annotations(stringAnnotation(k, v)) }
+    span
+  }
+
+  def longHash(string: String): Long = {
+    var h = 1125899906842597L
+    val len = string.length
+    for (i <- 0 until len) {
+      h = 31 * h + string.charAt(i)
+    }
+    h ^ ZipKinActor.sessionLong
+  }
+
+  private def traceInfoToSpans(trace: TraceInfo) = {
+    val rootToken = trace.metadata.getOrElse("rootToken", trace.token)
+    val parentToken = trace.metadata.get("parentToken")
+    val token = trace.token
+
+    val globalAnnotations = Map(
+      "token" -> token,
+      "rootToken" -> rootToken
+    ) ++ (parentToken match {
+      case Some(parentToken) => Map("parentToken" -> parentToken)
+      case None => Map.empty
+    })
+
+    val traceId = longHash(rootToken)
+    val rootSpanId = longHash(token)
+    val parentSpanId = parentToken.map(longHash).getOrElse(0L)
+
+    val root = simpleSpan(traceId, rootSpanId, trace.name, timestampToMicros(trace.timestamp), durationToMicros(trace.elapsedTime), globalAnnotations ++ trace.metadata, parentSpanId)
+    val children = trace.segments.map { segment =>
+      val segmentAnnotations = Map(
+        "category" -> segment.category,
+        "library" -> segment.library
+      )
+      simpleSpan(traceId, Random.nextLong(), segment.name, timestampToMicros(segment.timestamp), durationToMicros(segment.elapsedTime), globalAnnotations ++ segmentAnnotations ++ trace.metadata)
+    }
+    root :: children
+  }
+
+  private def stringAnnotation(key: String, value: String) = {
+    val a = new thrift.BinaryAnnotation()
+    a.set_annotation_type(thrift.AnnotationType.STRING)
+    a.set_key(key)
+    a.set_value(ByteBuffer.wrap(value.getBytes))
+    a.set_host(createEndpoint())
+    a
+  }
+
+
+  private def createEndpoint(service: String = "kamon") = {
+    val e = new thrift.Endpoint()
+    e.set_ipv4(localAddress)
+    e.set_port(0)
+    e.set_service_name(service)
+    e
+  }
+
+  private def logEntryFromSpan(span: thrift.Span): thrift.LogEntry = {
+    span.write(protocolFactory.getProtocol(thriftBuffer))
+    val thriftBytes = thriftBuffer.getArray.take(thriftBuffer.length)
+    thriftBuffer.reset()
+    val encodedSpan = DatatypeConverter.printBase64Binary(thriftBytes) + '\n'
+    new thrift.LogEntry("zipkin", encodedSpan)
   }
 }
 
@@ -212,6 +329,7 @@ object Verifier extends App {
     })
     println("Everything is: " + Await.result(futures, 10 seconds).forall(a ⇒ a == true))
   }
+
 
 }
 

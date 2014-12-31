@@ -44,6 +44,7 @@ private[trace] class MetricsOnlyContext(traceName: String, val token: String, iz
       log.warning("Can't rename trace from [{}] to [{}] because the trace is already closed.", name, newName)
 
   def name: String = _name
+  def metadata: Map[String, String] = Map.empty
   def isEmpty: Boolean = false
   def isOpen: Boolean = _isOpen
   def addMetadata(key: String, value: String): Unit = {}
@@ -95,6 +96,7 @@ private[trace] class MetricsOnlyContext(traceName: String, val token: String, iz
     @volatile private var _isOpen = true
 
     def name: String = _segmentName
+    def metadata: Map[String, String] = Map.empty
     def isEmpty: Boolean = false
     def addMetadata(key: String, value: String): Unit = {}
     def isOpen: Boolean = _isOpen

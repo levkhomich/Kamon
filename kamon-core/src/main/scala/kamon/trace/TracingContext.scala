@@ -35,6 +35,8 @@ private[trace] class TracingContext(traceName: String, token: String, izOpen: Bo
   private val _allSegments = new ConcurrentLinkedQueue[TracingSegment]()
   private val _metadata = TrieMap.empty[String, String]
 
+  override def metadata: Map[String, String] = _metadata.toMap
+
   override def addMetadata(key: String, value: String): Unit = _metadata.put(key, value)
 
   override def startSegment(segmentName: String, category: String, library: String): Segment = {
@@ -75,8 +77,11 @@ private[trace] class TracingContext(traceName: String, token: String, izOpen: Bo
   }
 
   class TracingSegment(segmentName: String, category: String, library: String) extends MetricsOnlySegment(segmentName, category, library) {
-    private val metadata = TrieMap.empty[String, String]
-    override def addMetadata(key: String, value: String): Unit = metadata.put(key, value)
+    private val _metadata = TrieMap.empty[String, String]
+
+    override def metadata: Map[String, String] = _metadata.toMap
+
+    override def addMetadata(key: String, value: String): Unit = _metadata.put(key, value)
 
     // Handle with care, should only be used after the segment has finished.
     def createSegmentInfo(traceStartTimestamp: NanoTimestamp, traceRelativeTimestamp: RelativeNanoTimestamp): SegmentInfo = {
@@ -86,7 +91,7 @@ private[trace] class TracingContext(traceName: String, token: String, izOpen: Bo
       // expensive and inaccurate, but we can do that once for the trace and calculate all the segments relative to it.
       val segmentStartTimestamp = new NanoTimestamp((this.startTimestamp.nanos - traceRelativeTimestamp.nanos) + traceStartTimestamp.nanos)
 
-      SegmentInfo(this.name, category, library, segmentStartTimestamp, this.elapsedTime, metadata.toMap)
+      SegmentInfo(this.name, category, library, segmentStartTimestamp, this.elapsedTime, _metadata.toMap)
     }
   }
 }
