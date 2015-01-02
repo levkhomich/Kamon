@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package kamon.zipkin
+package kamon.zipkin.util
 
 import org.apache.thrift.TByteArrayOutputStream
 import org.apache.thrift.transport.TTransport
