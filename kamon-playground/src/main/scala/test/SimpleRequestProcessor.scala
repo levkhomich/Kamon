@@ -16,22 +16,31 @@
 
 package test
 
+import java.net.InetAddress
+import java.nio.ByteBuffer
+import javax.xml.bind.DatatypeConverter
+
 import akka.actor._
 import akka.routing.RoundRobinPool
 import akka.util.Timeout
-import kamon.Kamon
+import kamon.zipkin.util.TReusableTransport
+import kamon.{NanoInterval, NanoTimestamp, Kamon}
 import kamon.metric.Subscriptions.TickMetricSnapshot
 import kamon.metric._
 import kamon.spray.KamonTraceDirectives
-import kamon.trace.{ Trace, SegmentCategory, TraceRecorder }
+import kamon.trace.{TraceInfo, Trace, SegmentCategory, TraceRecorder}
+import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.transport.{TSocket, TFramedTransport}
 import spray.http.{ StatusCodes, Uri }
 import spray.httpx.RequestBuilding
 import spray.routing.SimpleRoutingApp
+import kamon.zipkin.{ClientServiceData, ZipkinTracing, thrift}
 
 import scala.concurrent.{ Await, Future }
 import scala.util.Random
 
-object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuilding with KamonTraceDirectives {
+
+object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuilding with KamonTraceDirectives with ZipkinTracing {
   import akka.pattern.ask
   import spray.client.pipelining._
 
@@ -69,20 +78,63 @@ object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuil
 
   val pipeline = sendReceive
   val replier = system.actorOf(Props[Replier].withRouter(RoundRobinPool(nrOfInstances = 4)), "replier")
+  val asyncWork = system.actorOf(Props(new AsyncWork()))
 
   val random = new Random()
 
+  val MySqlClientData = Some(ClientServiceData("mysql-prod", "localhost", 3306))
+
   startServer(interface = "localhost", port = 9090) {
     get {
-      path("test") {
-        traceName("test") {
+      path("zipkin") {
+        get {
           complete {
-            val futures = pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: Nil
-
-            Future.sequence(futures).map(l ⇒ "Ok")
+            val f1 = {
+              traceFuture("f1") {
+                Future {
+                  Thread.sleep(800)
+                  asyncWork ! "ping"
+                  "Hello Kamon"
+                }
+              }
+            }
+            val f2 = Future {
+              trace("f2") {
+                Thread.sleep(200)
+                "OK"
+              }
+            }
+            val f3 = traceFuture("f3") {
+              Future {
+                Thread.sleep(200)
+              } flatMap { _ =>
+                traceFuture("mysql", MySqlClientData) {
+                  Future {
+                    Thread.sleep(300)
+                  }
+                } map { dbResult =>
+                  Thread.sleep(100)
+                  "DB"
+                }
+              }
+            }
+            Future.sequence(List(f1, f2, f3)).map { strList ⇒
+              trace("combine") {
+                strList.mkString(" ")
+              }
+            }
           }
         }
       } ~
+        path("test") {
+          traceName("test") {
+            complete {
+              val futures = pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: pipeline(Get("http://10.254.209.14:8000/")).map(r ⇒ "Ok") :: Nil
+
+              Future.sequence(futures).map(l ⇒ "Ok")
+            }
+          }
+        } ~
         path("site") {
           traceName("FinalGetSite-3") {
             complete {
@@ -174,6 +226,7 @@ object Verifier extends App {
     println("Everything is: " + Await.result(futures, 10 seconds).forall(a ⇒ a == true))
   }
 
+
 }
 
 class Replier extends Actor with ActorLogging {
@@ -184,6 +237,22 @@ class Replier extends Actor with ActorLogging {
 
       //log.info("Processing at the Replier, and self is: {}", self)
       sender ! anything
+  }
+}
+
+class AsyncWork extends Actor with ActorLogging with ZipkinTracing {
+  import context.system
+
+  def receive = {
+    case anything ⇒
+      if (TraceRecorder.currentContext.isEmpty)
+        log.warning("PROCESSING A MESSAGE WITHOUT CONTEXT")
+
+      trace("async") {
+        println(anything)
+
+        println("async", TraceRecorder.currentContext.token)
+      }
   }
 }
 
