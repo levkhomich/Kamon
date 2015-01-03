@@ -5,8 +5,9 @@ import java.nio.ByteBuffer
 import javax.xml.bind.DatatypeConverter
 
 import akka.actor.{ActorLogging, Actor}
+import kamon.metric.UserMetrics
 import scala.concurrent.duration._
-import kamon.{NanoInterval, NanoTimestamp}
+import kamon.{Kamon, NanoInterval, NanoTimestamp}
 import kamon.trace.TraceInfo
 import kamon.zipkin.util.TReusableTransport
 import org.apache.thrift.protocol.TBinaryProtocol
@@ -18,6 +19,7 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
   import ZipkinActor._
 
   private implicit val ec = context.dispatcher
+  private implicit val system = context.system
 
   private val protocolFactory = new TBinaryProtocol.Factory()
   private val thriftBuffer = new TReusableTransport()
@@ -28,6 +30,11 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
   private var retryCounter = 0
   private var scheduledSpans: List[thrift.Span] = Nil
 
+  val traceCount = Kamon(UserMetrics).registerCounter("trace-count")
+  val dropCount = Kamon(UserMetrics).registerCounter("trace-drop-count")
+  val flushErrorCount = Kamon(UserMetrics).registerCounter("flush-error-count")
+  val scheduledSpansHist = Kamon(UserMetrics).registerHistogram("schedule-spans")
+
 
   override def preStart() = {
     scheduleFlush()
@@ -35,9 +42,13 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
 
   def receive = {
     case trace: TraceInfo ⇒
+      traceCount.increment()
       scheduledSpans = traceInfoToSpans(trace) ::: scheduledSpans
-      if (scheduledSpans.size > config.collector.maxScheduledSpans)
+      if (scheduledSpans.size > config.collector.maxScheduledSpans) {
         scheduledSpans = scheduledSpans.take(config.collector.maxScheduledSpans)
+        dropCount.increment()
+      }
+      scheduledSpansHist.record(scheduledSpans.size)
     case Flush =>
       flush()
   }
@@ -63,6 +74,7 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
       client.Log(scheduledSpans.map(logEntryFromSpan))
       log.debug("Successfully flushed ${scheduleSpans.size} spans to Zipkin collector")
       scheduledSpans = Nil
+      scheduledSpansHist.record(scheduledSpans.size)
       scheduleFlush()
     } catch {
       case e: Exception =>
@@ -74,6 +86,7 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
   private def scheduleFlush(success: Boolean = true): Unit = {
     if (! success) {
       retryCounter += 1
+      flushErrorCount.increment()
     } else {
       retryCounter = 0
     }
