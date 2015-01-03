@@ -3,7 +3,7 @@ kamon-zipkin
 
 A Twitter [Zipkin] integration of Kamon that allows you to visually analyze traces.
 
-![Sample Zipkin Integration Screenshot](zipking4.png)
+![Sample Zipkin Integration Screenshot](zipkin4.png)
 
 
 
