@@ -23,7 +23,7 @@ object Projects extends Build {
 
   lazy val root = Project("root", file("."))
     .aggregate(kamonCore, kamonSpray, kamonNewrelic, kamonPlayground, kamonDashboard, kamonTestkit, kamonPlay, kamonStatsD,
-      kamonDatadog, kamonSystemMetrics, kamonLogReporter, kamonAkkaRemote, kamonJdbc, kamonZipkin)
+      kamonDatadog, kamonSystemMetrics, kamonLogReporter, kamonAkkaRemote, kamonJdbc, kamonZipkin, kamonZipkinCasbah)
     .settings(basicSettings: _*)
     .settings(formatSettings: _*)
     .settings(noPublishing: _*)
@@ -92,8 +92,8 @@ object Projects extends Build {
     .settings(aspectJSettings: _*)
     .settings(
       libraryDependencies ++=
-        compile(akkaActor, akkaSlf4j, sprayCan, sprayClient, sprayRouting, logback))
-    .dependsOn(kamonSpray, kamonNewrelic, kamonStatsD, kamonDatadog, kamonLogReporter, kamonSystemMetrics, kamonZipkin)
+        compile(akkaActor, akkaSlf4j, sprayCan, sprayClient, sprayRouting, logback, casbah))
+    .dependsOn(kamonSpray, kamonNewrelic, kamonStatsD, kamonDatadog, kamonLogReporter, kamonSystemMetrics, kamonZipkin, kamonZipkinCasbah)
 
 
   lazy val kamonDashboard = Project("kamon-dashboard", file("kamon-dashboard"))
@@ -190,6 +190,15 @@ object Projects extends Build {
         compile(akkaActor, libThrift) ++
         test(scalatest, akkaTestKit, slf4Api, slf4nop))
     .dependsOn(kamonCore)
+
+  lazy val kamonZipkinCasbah = Project("kamon-zipkin-casbah", file("kamon-zipkin/kamon-zipkin-casbah"))
+    .settings(basicSettings: _*)
+    .settings(formatSettings: _*)
+    .settings(
+      libraryDependencies ++=
+        compile(akkaActor, casbah) ++
+        test(scalatest, akkaTestKit, slf4Api, slf4nop))
+    .dependsOn(kamonCore, kamonZipkin)
 
 
   val noPublishing = Seq(publish := (), publishLocal := (), publishArtifact := false)

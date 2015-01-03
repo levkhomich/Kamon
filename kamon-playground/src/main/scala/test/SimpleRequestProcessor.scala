@@ -23,6 +23,7 @@ import javax.xml.bind.DatatypeConverter
 import akka.actor._
 import akka.routing.RoundRobinPool
 import akka.util.Timeout
+import com.mongodb.casbah.Imports._
 import kamon.zipkin.util.TReusableTransport
 import kamon.{NanoInterval, NanoTimestamp, Kamon}
 import kamon.metric.Subscriptions.TickMetricSnapshot
@@ -82,7 +83,17 @@ object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuil
 
   val random = new Random()
 
-  val MySqlClientData = Some(ClientServiceData("mysql-prod", "localhost", 3306))
+  val mongoClientData = Some(ClientServiceData("mzsql", "localhost", 27017))
+
+  val mongoClient = MongoClient()
+
+  object UserService {
+    val coll = mongoClient("db")("user")
+    def findUser(username: String) = Future {
+      Thread.sleep(100)
+      coll.findOneByID(username)
+    }
+  }
 
   startServer(interface = "localhost", port = 9090) {
     get {
@@ -105,17 +116,9 @@ object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuil
               }
             }
             val f3 = traceFuture("f3") {
-              Future {
-                Thread.sleep(200)
-              } flatMap { _ =>
-                traceFuture("mysql", MySqlClientData) {
-                  Future {
-                    Thread.sleep(300)
-                  }
-                } map { dbResult =>
-                  Thread.sleep(100)
-                  "DB"
-                }
+              UserService.findUser("foo") map { user =>
+                Thread.sleep(100)
+                "DB"
               }
             }
             Future.sequence(List(f1, f2, f3)).map { strList ⇒

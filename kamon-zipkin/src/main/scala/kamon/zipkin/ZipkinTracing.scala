@@ -19,7 +19,7 @@ object ZipkinTracing extends ZipkinTracing {
 }
 
 trait ZipkinTracing {
-  def trace[T](name: String, client: Option[ClientServiceData] = None)(f: ⇒ T)(implicit sys: ActorSystem): T = {
+  def trace[T](name: String, client: Option[ClientServiceData] = None)(f: ⇒ T): T = {
     val parentToken = TraceRecorder.currentContext.token
     val rootToken = TraceRecorder.currentContext.metadata.getOrElse(ZipkinTracing.rootToken, parentToken)
     TraceRecorder.withNewTraceContext(name) {
@@ -35,10 +35,10 @@ trait ZipkinTracing {
       } finally {
         TraceRecorder.finish()
       }
-    }
+    } (TraceRecorder.currentContext.system)
   }
 
-  def traceFuture[T](name: String, client: Option[ClientServiceData] = None)(f: ⇒ Future[T])(implicit ec: ExecutionContext, sys: ActorSystem): Future[T] = {
+  def traceFuture[T](name: String, client: Option[ClientServiceData] = None)(f: ⇒ Future[T])(implicit ec: ExecutionContext): Future[T] = {
     val parentToken = TraceRecorder.currentContext.token
     val rootToken = TraceRecorder.currentContext.metadata.getOrElse(ZipkinTracing.rootToken, parentToken)
     TraceRecorder.withNewTraceContext(name) {
@@ -52,7 +52,7 @@ trait ZipkinTracing {
       val future = f
       future.onComplete(_ ⇒ TraceRecorder.finish())
       future
-    }
+    } (TraceRecorder.currentContext.system)
   }
 
 

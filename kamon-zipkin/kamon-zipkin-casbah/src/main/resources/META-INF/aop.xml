@@ -1,0 +1,13 @@
+<!DOCTYPE aspectj PUBLIC "-//AspectJ//DTD//EN" "http://www.eclipse.org/aspectj/dtd/aspectj.dtd">
+
+<aspectj>
+  <aspects>
+    <aspect name="kamon.zipkin.casbah.MongoInstrumentation"/>
+  </aspects>
+
+  <weaver>
+    <include within="com.mongodb.casbah..*"/>
+    <include within="kamon.zipkin.casbah..*"/>
+  </weaver>
+
+</aspectj>

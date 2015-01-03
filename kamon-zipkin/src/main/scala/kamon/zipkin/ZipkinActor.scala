@@ -60,7 +60,10 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
   }
 
   private def flush() {
-    if (scheduledSpans.isEmpty) return
+    if (scheduledSpans.isEmpty) {
+      scheduleFlush()
+      return
+    }
 
     import scala.collection.JavaConversions._
 
@@ -103,24 +106,24 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
 
   private def simpleSpan(traceId: Long, spanId: Long, name: String, start: Long, duration: Long,
                          annotations: Map[String, String], parentSpanId: Long = 0,
-                         endpoint: thrift.Endpoint = createApplicationEndpoint()) = {
-    val sr = new thrift.Annotation()
-    sr.set_timestamp(start)
-    sr.set_value(thrift.zipkinConstants.SERVER_RECV)
-    sr.set_host(endpoint)
+                         endpoint: thrift.Endpoint = createApplicationEndpoint(), isClient: Boolean = false) = {
+    val sa = new thrift.Annotation()
+    sa.set_timestamp(start)
+    sa.set_value(if (isClient) thrift.zipkinConstants.CLIENT_SEND else thrift.zipkinConstants.SERVER_RECV)
+    sa.set_host(endpoint)
 
-    val ss = new thrift.Annotation()
-    ss.set_timestamp(start + duration)
-    ss.set_value(thrift.zipkinConstants.SERVER_SEND)
-    ss.set_host(sr.get_host())
+    val ea = new thrift.Annotation()
+    ea.set_timestamp(start + duration)
+    ea.set_value(if (isClient) thrift.zipkinConstants.CLIENT_RECV else thrift.zipkinConstants.SERVER_SEND)
+    ea.set_host(sa.get_host())
 
     val span = new thrift.Span()
     span.set_trace_id(traceId)
     span.set_id(spanId)
     span.set_parent_id(parentSpanId)
     span.set_name(name)
-    span.add_to_annotations(sr)
-    span.add_to_annotations(ss)
+    span.add_to_annotations(sa)
+    span.add_to_annotations(ea)
     annotations.foreach { case (k, v) => span.add_to_binary_annotations(stringAnnotation(k, v)) }
     span
   }
@@ -139,30 +142,25 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
     val parentToken = trace.metadata.get(ZipkinTracing.parentToken)
     val token = trace.token
 
-    val globalAnnotations = Map(
-      "token" -> token,
-      "rootToken" -> rootToken
-    ) ++ (parentToken match {
-      case Some(parentToken) => Map("parentToken" -> parentToken)
-      case None => Map.empty
-    })
-
     val traceId = longHash(rootToken)
     val rootSpanId = longHash(token)
     val parentSpanId = parentToken.map(longHash).getOrElse(0L)
 
-    val endpoint = (trace.metadata.isDefinedAt(ZipkinTracing.clientServiceName) && trace.metadata.isDefinedAt(ZipkinTracing.clientServiceHost)) match {
-      case true => createEndpoint(trace.metadata(ZipkinTracing.clientServiceName), trace.metadata(ZipkinTracing.clientServiceHost), trace.metadata.getOrElse(ZipkinTracing.clientServicePort, "0").toInt)
-      case false => createApplicationEndpoint()
+    val cleanMetaData = trace.metadata.filterKeys(k => ! k.startsWith(ZipkinTracing.internalPrefix))
+
+    val (endpoint, isClient) = (trace.metadata.isDefinedAt(ZipkinTracing.clientServiceName) && trace.metadata.isDefinedAt(ZipkinTracing.clientServiceHost)) match {
+      case true => (createEndpoint(trace.metadata(ZipkinTracing.clientServiceName), trace.metadata(ZipkinTracing.clientServiceHost), trace.metadata.getOrElse(ZipkinTracing.clientServicePort, "0").toInt), true)
+      case false => (createApplicationEndpoint(), false)
     }
 
-    val root = simpleSpan(traceId, rootSpanId, trace.name, timestampToMicros(trace.timestamp), durationToMicros(trace.elapsedTime), globalAnnotations ++ trace.metadata, parentSpanId, endpoint)
+    val root = simpleSpan(traceId, rootSpanId, trace.name, timestampToMicros(trace.timestamp), durationToMicros(trace.elapsedTime), cleanMetaData, parentSpanId, endpoint, isClient)
     val children = trace.segments.map { segment =>
       val segmentAnnotations = Map(
         "category" -> segment.category,
         "library" -> segment.library
       )
-      simpleSpan(traceId, Random.nextLong(), segment.name, timestampToMicros(segment.timestamp), durationToMicros(segment.elapsedTime), globalAnnotations ++ segmentAnnotations ++ trace.metadata, 0, endpoint)
+      val cleanMetaData = segment.metadata.filterKeys(k => ! k.startsWith(ZipkinTracing.internalPrefix))
+      simpleSpan(traceId, Random.nextLong(), segment.name, timestampToMicros(segment.timestamp), durationToMicros(segment.elapsedTime), segmentAnnotations ++ cleanMetaData, 0, endpoint, isClient)
     }
     root :: children
   }
