@@ -3,7 +3,7 @@ package kamon.zipkin
 import akka.actor.ActorSystem
 import kamon.trace.TraceRecorder
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 case class ClientServiceData(name: String, host: String, port: Int)
 
@@ -25,7 +25,7 @@ trait ZipkinTracing {
     TraceRecorder.withNewTraceContext(name) {
       TraceRecorder.currentContext.addMetadata(ZipkinTracing.rootToken, rootToken)
       TraceRecorder.currentContext.addMetadata(ZipkinTracing.parentToken, parentToken)
-      client.foreach { client =>
+      client.foreach { client ⇒
         TraceRecorder.currentContext.addMetadata(ZipkinTracing.clientServiceName, client.name)
         TraceRecorder.currentContext.addMetadata(ZipkinTracing.clientServiceHost, client.host)
         TraceRecorder.currentContext.addMetadata(ZipkinTracing.clientServicePort, client.port.toString)
@@ -35,7 +35,7 @@ trait ZipkinTracing {
       } finally {
         TraceRecorder.finish()
       }
-    } (TraceRecorder.currentContext.system)
+    }(TraceRecorder.currentContext.system)
   }
 
   def traceFuture[T](name: String, client: Option[ClientServiceData] = None)(f: ⇒ Future[T])(implicit ec: ExecutionContext): Future[T] = {
@@ -44,7 +44,7 @@ trait ZipkinTracing {
     TraceRecorder.withNewTraceContext(name) {
       TraceRecorder.currentContext.addMetadata(ZipkinTracing.rootToken, rootToken)
       TraceRecorder.currentContext.addMetadata(ZipkinTracing.parentToken, parentToken)
-      client.foreach { client =>
+      client.foreach { client ⇒
         TraceRecorder.currentContext.addMetadata(ZipkinTracing.clientServiceName, client.name)
         TraceRecorder.currentContext.addMetadata(ZipkinTracing.clientServiceHost, client.host)
         TraceRecorder.currentContext.addMetadata(ZipkinTracing.clientServicePort, client.port.toString)
@@ -52,25 +52,23 @@ trait ZipkinTracing {
       val future = f
       future.onComplete(_ ⇒ TraceRecorder.finish())
       future
-    } (TraceRecorder.currentContext.system)
+    }(TraceRecorder.currentContext.system)
   }
 
-
-
-//  def trace[T](name: String, category: Option[String] = None)(f: ⇒ T)(implicit sys: ActorSystem): T = {
-//    val segment = TraceRecorder.currentContext.startSegment(name, category.getOrElse("unknown"), "unknown")
-//    try {
-//      f
-//    } finally {
-//      segment.finish()
-//    }
-//  }
-//
-//
-//  def traceFuture[T](name: String, category: Option[String] = None)(f: ⇒ Future[T])(implicit ec: ExecutionContext, sys: ActorSystem): Future[T] = {
-//    val segment = TraceRecorder.currentContext.startSegment(name, category.getOrElse("unknown"), "unknown")
-//    val future = f
-//    future.onComplete(_ => segment.finish())
-//    future
-//  }
+  //  def trace[T](name: String, category: Option[String] = None)(f: ⇒ T)(implicit sys: ActorSystem): T = {
+  //    val segment = TraceRecorder.currentContext.startSegment(name, category.getOrElse("unknown"), "unknown")
+  //    try {
+  //      f
+  //    } finally {
+  //      segment.finish()
+  //    }
+  //  }
+  //
+  //
+  //  def traceFuture[T](name: String, category: Option[String] = None)(f: ⇒ Future[T])(implicit ec: ExecutionContext, sys: ActorSystem): Future[T] = {
+  //    val segment = TraceRecorder.currentContext.startSegment(name, category.getOrElse("unknown"), "unknown")
+  //    val future = f
+  //    future.onComplete(_ => segment.finish())
+  //    future
+  //  }
 }

@@ -31,7 +31,7 @@ object TraceRecorder {
     override def initialValue(): TraceContext = EmptyTraceContext
   }
 
-  private val tokenCounter = new AtomicLong
+  private val tokenCounter = new AtomicLong(System.currentTimeMillis())
   private val hostnamePrefix = Try(InetAddress.getLocalHost.getHostName).getOrElse("unknown-localhost")
 
   def newToken: String = hostnamePrefix + "-" + String.valueOf(tokenCounter.incrementAndGet())

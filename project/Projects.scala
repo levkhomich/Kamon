@@ -197,6 +197,7 @@ object Projects extends Build {
     .settings(
       libraryDependencies ++=
         compile(akkaActor, casbah) ++
+        provided(aspectJ) ++
         test(scalatest, akkaTestKit, slf4Api, slf4nop))
     .dependsOn(kamonCore, kamonZipkin)
 

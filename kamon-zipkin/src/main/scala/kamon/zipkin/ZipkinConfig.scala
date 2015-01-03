@@ -23,8 +23,8 @@ class ZipkinConfig(zipkinConfig: Config) {
 
     val name = config.getString("name")
     val host = config.getString("host") match {
-      case "auto" => InetAddress.getLocalHost
-      case host => InetAddress.getByName(host)
+      case "auto" ⇒ InetAddress.getLocalHost
+      case host   ⇒ InetAddress.getByName(host)
     }
     val port = config.getInt("port")
   }

@@ -142,7 +142,7 @@ class ClientRequestInstrumentation {
     val modifiedHeaders = TraceRecorder.withTraceContextAndSystem { (ctx, system) ⇒
       val sprayExtension = Kamon(Spray)(system)
       if (sprayExtension.includeTraceToken)
-        RawHeader(sprayExtension.traceTokenHeaderName, ctx.token) :: defaultHeaders
+        RawHeader(sprayExtension.traceTokenHeaderName, ctx.metadata.get("zipkin.rootToken").getOrElse(ctx.token)) :: defaultHeaders
       else
         defaultHeaders
 

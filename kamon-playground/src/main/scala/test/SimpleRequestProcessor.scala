@@ -25,21 +25,20 @@ import akka.routing.RoundRobinPool
 import akka.util.Timeout
 import com.mongodb.casbah.Imports._
 import kamon.zipkin.util.TReusableTransport
-import kamon.{NanoInterval, NanoTimestamp, Kamon}
+import kamon.{ NanoInterval, NanoTimestamp, Kamon }
 import kamon.metric.Subscriptions.TickMetricSnapshot
 import kamon.metric._
 import kamon.spray.KamonTraceDirectives
-import kamon.trace.{TraceInfo, Trace, SegmentCategory, TraceRecorder}
+import kamon.trace.{ TraceInfo, Trace, SegmentCategory, TraceRecorder }
 import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.thrift.transport.{TSocket, TFramedTransport}
+import org.apache.thrift.transport.{ TSocket, TFramedTransport }
 import spray.http.{ StatusCodes, Uri }
 import spray.httpx.RequestBuilding
 import spray.routing.SimpleRoutingApp
-import kamon.zipkin.{ClientServiceData, ZipkinTracing, thrift}
+import kamon.zipkin.{ ClientServiceData, ZipkinTracing, thrift }
 
 import scala.concurrent.{ Await, Future }
 import scala.util.Random
-
 
 object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuilding with KamonTraceDirectives with ZipkinTracing {
   import akka.pattern.ask
@@ -116,7 +115,7 @@ object SimpleRequestProcessor extends App with SimpleRoutingApp with RequestBuil
               }
             }
             val f3 = traceFuture("f3") {
-              UserService.findUser("foo") map { user =>
+              UserService.findUser("foo") map { user ⇒
                 Thread.sleep(100)
                 "DB"
               }
@@ -228,7 +227,6 @@ object Verifier extends App {
     })
     println("Everything is: " + Await.result(futures, 10 seconds).forall(a ⇒ a == true))
   }
-
 
 }
 
