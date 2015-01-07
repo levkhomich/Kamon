@@ -21,7 +21,6 @@ import Publish.{settings => publishSettings}
 import Release.{settings => releaseSettings}
 import scalariform.formatter.preferences._
 import net.virtualvoid.sbt.graph.Plugin.graphSettings
-import com.twitter.scrooge.ScroogeSBT
 
 object Settings {
 
@@ -66,9 +65,4 @@ object Settings {
       .setPreference(AlignSingleLineCaseStatements, true)
       .setPreference(DoubleIndentClassDeclaration, true)
 
-  lazy val scroogeSettings = ScroogeSBT.newSettings ++
-    Seq(
-      ScroogeSBT.scroogeBuildOptions := Seq("-verbose") ,
-      scalacOptions ++= Seq("-language:higherKinds")
-    )
 }

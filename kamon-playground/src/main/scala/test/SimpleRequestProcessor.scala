@@ -24,7 +24,6 @@ import akka.actor._
 import akka.routing.RoundRobinPool
 import akka.util.Timeout
 import com.mongodb.casbah.Imports._
-import kamon.zipkin.util.TReusableTransport
 import kamon.{ NanoInterval, NanoTimestamp, Kamon }
 import kamon.metric.Subscriptions.TickMetricSnapshot
 import kamon.metric._
@@ -35,7 +34,7 @@ import org.apache.thrift.transport.{ TSocket, TFramedTransport }
 import spray.http.{ StatusCodes, Uri }
 import spray.httpx.RequestBuilding
 import spray.routing.SimpleRoutingApp
-import kamon.zipkin.{ ClientServiceData, ZipkinTracing, thrift }
+import kamon.zipkin.{ ClientServiceData, ZipkinTracing }
 
 import scala.concurrent.{ Await, Future }
 import scala.util.Random

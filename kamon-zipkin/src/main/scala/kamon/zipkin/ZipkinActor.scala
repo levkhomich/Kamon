@@ -1,102 +1,27 @@
 package kamon.zipkin
 
+import akka.actor.{ ActorLogging, Actor }
 import java.net.InetAddress
 import java.nio.ByteBuffer
-import javax.xml.bind.DatatypeConverter
-
-import akka.actor.{ ActorLogging, Actor }
+import scala.util.Random
+import com.github.levkhomich.akka.tracing.TracingExtensionImpl
+import com.github.levkhomich.akka.tracing.thrift
 import kamon.metric.UserMetrics
-import kamon.zipkin.thrift.Scribe
-import scala.concurrent.duration._
 import kamon.{ Kamon, NanoInterval, NanoTimestamp }
 import kamon.trace.TraceInfo
-import kamon.zipkin.util.TReusableTransport
-import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.thrift.transport.{ TSocket, TFramedTransport }
 
-import scala.util.Random
-
-class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
+class ZipkinActor(config: ZipkinConfig, tracingExt: TracingExtensionImpl) extends Actor with ActorLogging {
   import ZipkinActor._
 
   private implicit val ec = context.dispatcher
   private implicit val system = context.system
 
-  private val protocolFactory = new TBinaryProtocol.Factory()
-  private val thriftBuffer = new TReusableTransport()
-
-  private val transport = new TFramedTransport(new TSocket(config.collector.host, config.collector.port))
-  private val client = new Scribe.FinagledClient(new TBinaryProtocol(transport))
-
-  private var retryCounter = 0
-  private var scheduledSpans: List[thrift.Span] = Nil
-
   val traceCount = Kamon(UserMetrics).registerCounter("trace-count")
-  val dropCount = Kamon(UserMetrics).registerCounter("trace-drop-count")
-  val flushErrorCount = Kamon(UserMetrics).registerCounter("flush-error-count")
-  val scheduledSpansHist = Kamon(UserMetrics).registerHistogram("schedule-spans")
-
-  override def preStart() = {
-    scheduleFlush()
-  }
 
   def receive = {
     case trace: TraceInfo ⇒
       traceCount.increment()
-      scheduledSpans = traceInfoToSpans(trace) ::: scheduledSpans
-      if (scheduledSpans.size > config.collector.maxScheduledSpans) {
-        scheduledSpans = scheduledSpans.take(config.collector.maxScheduledSpans)
-        dropCount.increment()
-      }
-      scheduledSpansHist.record(scheduledSpans.size)
-    case Flush ⇒
-      flush()
-  }
-
-  override def postStop() = {
-    flush()
-    transport.close()
-  }
-
-  private def flush() {
-    if (scheduledSpans.isEmpty) {
-      scheduleFlush()
-      return
-    }
-
-    import scala.collection.JavaConversions._
-
-    if (!transport.isOpen()) {
-      log.debug("Connected to Zipkin collector")
-      transport.open()
-    }
-
-    try {
-      log.debug(s"Flushing ${scheduledSpans.size} spans to Zipkin collector")
-      client.Log(scheduledSpans.map(logEntryFromSpan))
-      log.debug(s"Successfully flushed ${scheduledSpans.size} spans to Zipkin collector")
-      scheduledSpans = Nil
-      scheduledSpansHist.record(scheduledSpans.size)
-      scheduleFlush()
-    } catch {
-      case e: Exception ⇒
-        log.error(e, s"Could not send trace data to Zipkin collector: ${e.getMessage()}")
-        scheduleFlush(false)
-    }
-  }
-
-  private def scheduleFlush(success: Boolean = true): Unit = {
-    if (!success) {
-      retryCounter += 1
-      flushErrorCount.increment()
-    } else {
-      retryCounter = 0
-    }
-    val interval = retryCounter match {
-      case 0 | 1 | 2 ⇒ config.collector.flushInterval.millis
-      case x         ⇒ Math.min(config.collector.flushInterval * x, config.collector.maxFlushInterval).millis
-    }
-    context.system.scheduler.scheduleOnce(interval, self, Flush)
+      tracingExt.submitSpans(traceInfoToSpans(trace))
   }
 
   private def timestampToMicros(nano: NanoTimestamp) = nano.nanos / 1000
@@ -135,7 +60,7 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
     h ^ sessionLong
   }
 
-  private def traceInfoToSpans(trace: TraceInfo) = {
+  private def traceInfoToSpans(trace: TraceInfo): List[com.github.levkhomich.akka.tracing.thrift.Span] = {
     val rootToken = trace.metadata.getOrElse(ZipkinTracing.rootToken, trace.token)
     val parentToken = trace.metadata.get(ZipkinTracing.parentToken)
     val token = trace.token
@@ -169,7 +94,7 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
     a.set_annotation_type(thrift.AnnotationType.STRING)
     a.set_key(key)
     a.set_value(ByteBuffer.wrap(value.getBytes))
-    a.set_host(createApplicationEndpoint())
+    //    a.set_host(createApplicationEndpoint())
     a
   }
 
@@ -190,13 +115,6 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
     e
   }
 
-  private def logEntryFromSpan(span: thrift.Span): thrift.LogEntry = {
-    span.write(protocolFactory.getProtocol(thriftBuffer))
-    val thriftBytes = thriftBuffer.getArray.take(thriftBuffer.length)
-    thriftBuffer.reset()
-    val encodedSpan = DatatypeConverter.printBase64Binary(thriftBytes) + '\n'
-    new thrift.LogEntry("zipkin", encodedSpan)
-  }
 }
 
 object ZipkinActor {
@@ -206,6 +124,4 @@ object ZipkinActor {
    */
   private val sessionLong = 0
 
-  sealed trait ZipkinActorProtocol
-  case object Flush extends ZipkinActorProtocol
 }
