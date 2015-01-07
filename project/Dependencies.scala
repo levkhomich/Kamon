@@ -57,6 +57,8 @@ object Dependencies {
   val sigarLoader     = "io.kamon"                  %   "sigar-loader"          % "1.6.5-rev001"
   val h2              = "com.h2database"            %   "h2"                    % "1.4.182"
   val libThrift       = "org.apache.thrift"         %   "libthrift"             % "0.9.2"
+  val scroogeCore     = "com.twitter"               %%  "scrooge-core"          % "3.17.0"
+  val finagleThrift   = "com.twitter"               %% "finagle-thrift"         % "6.24.0"
   val casbah          = "org.mongodb"               %%  "casbah"                % "2.7.2"
 
   def compile   (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")

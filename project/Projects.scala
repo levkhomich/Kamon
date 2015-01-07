@@ -185,9 +185,10 @@ object Projects extends Build {
   lazy val kamonZipkin = Project("kamon-zipkin", file("kamon-zipkin"))
     .settings(basicSettings: _*)
     .settings(formatSettings: _*)
+    .settings(scroogeSettings: _*)
     .settings(
       libraryDependencies ++=
-        compile(akkaActor, libThrift) ++
+        compile(akkaActor, libThrift, scroogeCore, finagleThrift) ++
         test(scalatest, akkaTestKit, slf4Api, slf4nop))
     .dependsOn(kamonCore)
 

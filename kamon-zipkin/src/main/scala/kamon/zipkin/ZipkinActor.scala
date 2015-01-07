@@ -6,6 +6,7 @@ import javax.xml.bind.DatatypeConverter
 
 import akka.actor.{ ActorLogging, Actor }
 import kamon.metric.UserMetrics
+import kamon.zipkin.thrift.Scribe
 import scala.concurrent.duration._
 import kamon.{ Kamon, NanoInterval, NanoTimestamp }
 import kamon.trace.TraceInfo
@@ -25,7 +26,7 @@ class ZipkinActor(config: ZipkinConfig) extends Actor with ActorLogging {
   private val thriftBuffer = new TReusableTransport()
 
   private val transport = new TFramedTransport(new TSocket(config.collector.host, config.collector.port))
-  private val client = new thrift.Scribe.Client(new TBinaryProtocol(transport))
+  private val client = new Scribe.FinagledClient(new TBinaryProtocol(transport))
 
   private var retryCounter = 0
   private var scheduledSpans: List[thrift.Span] = Nil
